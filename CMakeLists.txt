@@ -89,6 +89,12 @@ IF(MSVC)
         CMAKE_C_FLAGS_MINSIZEREL)
       string (REGEX REPLACE "(^| )[/-]D *NDEBUG($| )" " "
         "${flags_var_to_scrub}" "${${flags_var_to_scrub}}")
+
+      # If requested, compile with `/MT` to link against `libcmt.lib`, removing
+      # a dependency on a DLL of the build artifacts
+      IF(MSVC_USE_LIBCMT)
+        string(REPLACE "/MD" "/MT" ${flags_var_to_scrub} "${${flags_var_to_scrub}}")
+      ENDIF()
     endforeach()
   endif()
 
