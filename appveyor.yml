@@ -13,12 +13,16 @@ environment:
   - GENERATOR: Visual Studio 14 2015
     CONFIG: Release
     PARALLEL_FLAG: "/m:"
+    DEPLOY: 1
+    ARCH: x86
   - GENERATOR: Visual Studio 14 2015 Win64
     CONFIG: Debug
     PARALLEL_FLAG: "/m:"
   - GENERATOR: Visual Studio 14 2015 Win64
     CONFIG: Release
     PARALLEL_FLAG: "/m:"
+    DEPLOY: 1
+    ARCH: x86_64
 
 install:
   - pip install flake8==3.4.1
@@ -33,3 +37,22 @@ build_script:
 
 test_script:
   - ctest --output-on-failure --timeout 10 -j 5
+
+before_deploy:
+  - ps: |
+        $NAME = "binaryen-${env:APPVEYOR_REPO_TAG_NAME}-${env:ARCH}-windows"
+        Move-Item -Path bin -Destination $NAME
+        7z a -ttar "${NAME}.tar" "${NAME}"
+        7z a "${NAME}.tar.gz" "${NAME}.tar"
+        Push-AppveyorArtifact "${NAME}.tar.gz"
+
+deploy:
+  artifact: /.*\.tar.gz/
+  auth_token:
+    secure: dtHSvbZkdAFtL0J5YrSw8DpxjfYuHWgqD1SupmJT/yfYSjEBiX55RFXRoqBM2tx1
+  description: ''
+  on:
+    appveyor_repo_tag: true
+    DEPLOY: 1
+  provider: GitHub
+
