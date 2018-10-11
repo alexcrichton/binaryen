@@ -89,6 +89,10 @@ IF(MSVC)
         CMAKE_C_FLAGS_MINSIZEREL)
       string (REGEX REPLACE "(^| )[/-]D *NDEBUG($| )" " "
         "${flags_var_to_scrub}" "${${flags_var_to_scrub}}")
+
+      IF(MSVC_STATIC_CRT)
+        string(REPLACE "/MD" "/MT" ${flags_var_to_scrub} "${${flags_var_to_scrub}}")
+      ENDIF()
     endforeach()
   endif()
 
