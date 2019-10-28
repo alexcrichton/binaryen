@@ -1,0 +1,65 @@
+name: CI
+on: [push, pull_request]
+
+jobs:
+  build:
+    name: Build
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+    steps:
+    - uses: actions/checkout@master
+
+    - run: |
+        set -ex
+        cmake . -DCMAKE_BUILD_TYPE=Release -Ax64 -G "Visual Studio 16 2019"
+        cmake --build --config Release .
+        echo ::set-env name=PLATFORM::x86_64-pc-windows-msvc
+      shell: bash
+      if: matrix.os == 'windows-latest'
+      name: Build (Windows)
+
+    - run: |
+        set -ex
+        cmake .
+        make -j4
+        echo ::set-env name=PLATFORM::x86_64-apple-darwin
+      env:
+        MACOSX_DEPLOYMENT_TARGET: 10.9
+        ARCH: x86_64-apple-darwin
+      if: matrix.os == 'macos-latest'
+      name: Build (macOS)
+
+    - run: |
+        set -ex
+        docker run -w /src -di --name alpine -v $(pwd):/src node:13-alpine
+        alpine() { docker exec alpine "$@"; }
+        alpine apk update
+        alpine apk add build-base cmake git python2 python3 clang
+        alpine cmake -DCMAKE_BUILD_TYPE=Release \
+                     -DCMAKE_VERBOSE_MAKEFILE=ON \
+                     -DCMAKE_CXX_FLAGS="-static" \
+                     -DCMAKE_C_FLAGS="-static" . \
+                     -DCMAKE_C_COMPILER=clang \
+                     -DCMAKE_CXX_COMPILER=clang++
+        alpine make -j4
+        alpine find bin/ -type f -perm -u=x -exec strip -g {} +
+        echo ::set-env name=PLATFORM::x86_64-unknown-linux-musl
+      if: matrix.os == 'ubuntu-latest'
+      name: Build (Linux)
+
+    - run: |
+        set -ex
+        echo $PLATFORM
+        PKGNAME="binaryen-$PLATFORM"
+        mv bin $PKGNAME
+        mkdir dist
+        tar czvf dist/$PKGNAME.tar.gz $PKGNAME
+      shell: bash
+
+    - uses: actions/upload-artifact@v1
+      with:
+        name: dist-${{ matrix.os }}
+        path: dist
